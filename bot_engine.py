@@ -14,7 +14,7 @@ def load_config():
         print(f"Error cargando config.json: {e}")
         return {}
 
-# Memoria temporal por número de teléfono
+# Memoria de conversación por número de cliente
 conversation_history = {}
 
 def get_system_prompt():
@@ -36,36 +36,34 @@ Horario de atención:
 
 Instrucciones de comportamiento:
 1. Mantén un tono amigable, profesional y cercano.
-2. Recuerda los datos que el cliente ya te haya compartido en la conversación (nombre, servicio deseado, hora, etc.). NO vuelvas a pedir información que ya se ha mencionado.
-3. Si el cliente indica su nombre, el servicio y la hora deseada, confirma la cita de manera clara y directa.
-4. Respuestas concisas e ideales para WhatsApp (evita párrafos excesivamente largos).
+2. Recuerda SIEMPRE la información previa enviada por el cliente (nombre, servicio deseado, hora). NO vuelvas a pedir datos que el cliente ya te dio en la conversación.
+3. Cuando el cliente te dé su nombre, servicio y hora, confirma la cita de forma clara.
+4. Respuestas breves y directas, óptimas para WhatsApp.
 """
     return prompt.strip()
 
-def process_message(user_phone, user_message):
+def procesar_mensaje_cliente(user_phone, user_message):
     """
-    Procesa un mensaje entrante manteniendo el historial del usuario.
+    Procesa un mensaje manteniendo la memoria de conversación por número telefónico.
     """
     global conversation_history
 
-    # Crear historial para nuevos usuarios
+    # Si es la primera vez que escribe este número, iniciamos su historial
     if user_phone not in conversation_history:
         conversation_history[user_phone] = [
             {"role": "system", "content": get_system_prompt()}
         ]
 
-    # Añadir el mensaje actual del cliente
+    # Agregar el mensaje entrante del usuario
     conversation_history[user_phone].append({"role": "user", "content": user_message})
 
-    # Mantener el historial dentro de un tamaño manejable (últimos 10 mensajes)
+    # Mantener máximo los últimos 10 mensajes en memoria para optimizar el contexto
     if len(conversation_history[user_phone]) > 12:
-        # Conservar el prompt inicial del sistema y los últimos 10 mensajes
         system_prompt = conversation_history[user_phone][0]
         recent_messages = conversation_history[user_phone][-10:]
         conversation_history[user_phone] = [system_prompt] + recent_messages
 
     try:
-        # Llamar a OpenAI enviando todo el contexto
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=conversation_history[user_phone],
@@ -74,11 +72,11 @@ def process_message(user_phone, user_message):
         
         bot_reply = response.choices[0].message.content.strip()
 
-        # Guardar la respuesta del asistente en el historial
+        # Guardar la respuesta dada en el historial del cliente
         conversation_history[user_phone].append({"role": "assistant", "content": bot_reply})
 
         return bot_reply
 
     except Exception as e:
-        print(f"Error generando respuesta con OpenAI: {e}")
-        return "Lo siento, tuve un inconveniente procesando tu solicitud. Por favor intenta de nuevo en un momento."
+        print(f"Error con la API de OpenAI: {e}")
+        return "Lo siento, tuve un pequeño inconveniente procesando tu mensaje. ¿Me lo podrías repetir?"
