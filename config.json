@@ -1,23 +1,21 @@
 {
-  "business_name": "Agencia de Automatización e IA para Negocios",
-  "business_hours": "Lunes a Viernes de 8:00 AM a 7:00 PM (El bot atiende 24/7)",
+  "business_name": "Agencia de Agentes de IA para WhatsApp",
   "services": [
     {
-      "name": "Bot de IA Básico (Atención 24/7 + Preguntas Frecuentes)",
-      "price": "150 USD de instalación + 30 USD/mes"
+      "name": "Asistente Virtual con IA 24/7 (Configuración e Instalación)",
+      "price": "$400.000 COP (Pago único)"
     },
     {
-      "name": "Bot de IA Vendedor (Captura de Leads + Agendamiento + Memoria)",
-      "price": "250 USD de instalación + 50 USD/mes"
-    },
-    {
-      "name": "Sistema Completo a Medida (Integración con CRM / Base de Datos)",
-      "price": "400 USD de instalación + 80 USD/mes"
+      "name": "Mantenimiento Mensual (Incluye servidores, conexión WhatsApp y consumo de IA)",
+      "price": "$120.000 COP / mes"
     }
   ],
   "faq": [
-    "¿Sirve para cualquier tipo de negocio? Sí, se adapta a barberías, tiendas online, inmobiliarias, clínicas, restaurantes y más.",
-    "¿Necesito saber de programación para usarlo? No, nosotros nos encargamos de toda la configuración técnica.",
-    "¿Se puede probar gratis? Sí, puedes enviarnos los datos de tu negocio y te armamos un demo de prueba en 24 horas."
+    "¿Hay cláusula de permanencia? No, puedes cancelar el plan mensual cuando quieras.",
+    "¿Qué incluye el valor de instalación? Configuramos todo el catálogo de tu negocio, los horarios, la ubicación y te dejamos el WhatsApp conectado listo para atender."
+"¿Cómo se entrega el servicio? Te entregamos el bot configurado y listo para responder en tu propia cuenta de WhatsApp tras escanear un código QR.",
+    "¿Necesito saber programar? No, nosotros nos encargamos de todo el montaje en la nube (Render) y la conexión con OpenAI.",
+    "¿Qué pasa si quiero cambiar mis precios después? Te enseñamos a editar un archivo simple (config.json) en 2 minutos o lo hacemos por ti en tu plan mensual.",
+    "¿Puedo probarlo antes de comprar? Sí, puedes chatear directamente con este bot para ver cómo califica, responde y captura tus datos."
   ]
 }
