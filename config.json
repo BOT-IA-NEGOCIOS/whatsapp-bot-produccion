@@ -1,21 +1,27 @@
 {
   "business_name": "Agencia de Agentes de IA para WhatsApp",
+  "business_hours": "Atención automatizada 24/7 (Soporte humano: Lunes a Viernes 8:00 AM - 6:00 PM)",
+  "location": "Bogotá, Colombia (Servicio a nivel nacional e internacional)",
+  "payment_methods": "Wompi (Tarjeta de Crédito/Débito), Nequi, Bancolombia",
+  "data_to_collect": [
+    "Nombre completo",
+    "Correo electrónico",
+    "Teléfono de contacto",
+    "Servicio de interés"
+  ],
   "services": [
     {
       "name": "Asistente Virtual con IA 24/7 (Configuración e Instalación)",
-      "price": "$400.000 COP (Pago único)"
+      "price": "$300.000 COP (Pago único)"
     },
     {
-      "name": "Mantenimiento Mensual (Incluye servidores, conexión WhatsApp y consumo de IA)",
+      "name": "Mantenimiento Mensual (Servidores, conexión WhatsApp y consumo de IA)",
       "price": "$120.000 COP / mes"
     }
   ],
   "faq": [
     "¿Hay cláusula de permanencia? No, puedes cancelar el plan mensual cuando quieras.",
-    "¿Qué incluye el valor de instalación? Configuramos todo el catálogo de tu negocio, los horarios, la ubicación y te dejamos el WhatsApp conectado listo para atender."
-"¿Cómo se entrega el servicio? Te entregamos el bot configurado y listo para responder en tu propia cuenta de WhatsApp tras escanear un código QR.",
-    "¿Necesito saber programar? No, nosotros nos encargamos de todo el montaje en la nube (Render) y la conexión con OpenAI.",
-    "¿Qué pasa si quiero cambiar mis precios después? Te enseñamos a editar un archivo simple (config.json) en 2 minutos o lo hacemos por ti en tu plan mensual.",
-    "¿Puedo probarlo antes de comprar? Sí, puedes chatear directamente con este bot para ver cómo califica, responde y captura tus datos."
+    "¿Qué incluye la instalación? Configuramos todo el catálogo, horarios, ubicación y dejamos el WhatsApp conectado listo para atender.",
+    "¿Necesito saber programar? No, nosotros nos encargamos de todo el montaje técnico."
   ]
 }
