@@ -1,92 +1,157 @@
-import json
 import os
+import sqlite3
+import requests
+from flask import Flask, request, jsonify
 from openai import OpenAI
 
-# Inicializar cliente de OpenAI
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+app = Flask(__name__)
 
-# Cargar configuración del negocio desde config.json
-def load_config():
-    try:
-        with open("config.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error cargando config.json: {e}")
-        return {}
+# ==========================================
+# CONFIGURACIÓN DE CREDENCIALES Y API
+# ==========================================
+# Inicializa OpenAI y UltraMsg con tus variables de entorno o credenciales
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", "TU_OPENAI_API_KEY"))
+ULTRAMSG_INSTANCE_ID = os.environ.get("ULTRAMSG_INSTANCE_ID", "tu_instance_id")
+ULTRAMSG_TOKEN = os.environ.get("ULTRAMSG_TOKEN", "tu_token")
 
-# Memoria temporal por número de teléfono
-conversation_history = {}
-
-def get_system_prompt():
-    config = load_config()
-    business_name = config.get("business_name", "nuestro negocio")
-    services = config.get("services", [])
-    hours = config.get("business_hours", "Lunes a Sábado de 9:00 AM a 8:00 PM")
-    
-    # Formatear catálogo o lista de servicios
-    services_text = "\n".join([f"• {s.get('name')}: ${s.get('price')}" for s in services])
-    
-    prompt = f"""
-Eres un asesor de atención al cliente y ventas para {business_name}. Tu estilo de comunicación es cercano, amable, fresco y muy natural, como si fuera una persona de confianza respondiendo por WhatsApp.
-
-Catálogo / Oferta de {business_name}:
-{services_text}
-
-Horarios de atención:
-{hours}
-
-REGLAS Y OBJETIVOS DE CONVERSACIÓN:
-1. TONO HUMANO Y FRESCO: Habla de forma amigable, relajada y directa. Usa respuestas breves (1 a 3 frases máximo por mensaje) y emojis con moderación. Evita sonar como un robot, manual o menú telefónico.
-2. MEMORIA ACTIVA: Recuerda absolutamente todo lo que el cliente te ha dicho en la conversación (nombre, interés, horarios, etc.). NUNCA vuelvas a pedir un dato que ya te hayan dado.
-3. CAPTURA DE DATOS PARA LA ORDEN / CITA:
-   Para completar cualquier agendamiento, pedido o reserva, debes asegurarte de obtener de manera amigable estos datos clave durante la charla:
-   - Nombre completo del cliente.
-   - Producto / Servicio solicitado.
-   - Correo electrónico (diles que es para enviarles la confirmación/recibo).
-   - Fecha y hora deseada (o dirección de envío si es producto).
-4. CIERRE Y CONFIRMACIÓN: Una vez que tengas todos los datos, dale un resumen bonito y dile que su solicitud ha quedado lista y registrada.
-"""
-    return prompt.strip()
-
-def procesar_mensaje_cliente(user_phone, user_message):
-    """
-    Procesa el mensaje del cliente manteniendo el contexto y la recolección de datos.
-    """
-    global conversation_history
-
-    # Crear historial para clientes nuevos
-    if user_phone not in conversation_history:
-        conversation_history[user_phone] = [
-            {"role": "system", "content": get_system_prompt()}
-        ]
-
-    # Añadir mensaje del cliente
-    conversation_history[user_phone].append({"role": "user", "content": user_message})
-
-    # Limitar el historial a los últimos 10 mensajes para mantener eficiencia
-    if len(conversation_history[user_phone]) > 12:
-        system_prompt = conversation_history[user_phone][0]
-        recent_messages = conversation_history[user_phone][-10:]
-        conversation_history[user_phone] = [system_prompt] + recent_messages
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=conversation_history[user_phone],
-            temperature=0.7
+# ==========================================
+# 1. GESTIÓN DE BASE DE DATOS (SQLite)
+# ==========================================
+def inicializar_bd():
+    """Crea la base de datos y la tabla de pedidos si no existen."""
+    conn = sqlite3.connect('clientes_negocio.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pedidos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            telefono TEXT,
+            nombre TEXT,
+            direccion TEXT,
+            pedido TEXT,
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    ''')
+    conn.commit()
+    conn.close()
+
+def guardar_pedido_en_db(telefono, nombre, direccion, pedido):
+    """Guarda los datos del cliente de forma permanente."""
+    conn = sqlite3.connect('clientes_negocio.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO pedidos (telefono, nombre, direccion, pedido) VALUES (?, ?, ?, ?)",
+        (telefono, nombre, direccion, pedido)
+    )
+    conn.commit()
+    conn.close()
+
+# Inicializamos la base de datos al arrancar el servidor
+inicializar_bd()
+
+# ==========================================
+# 2. SISTEMA DE ALERTAS (UltraMsg)
+# ==========================================
+def enviar_alerta_al_negocio(nombre, telefono, direccion, pedido):
+    """Dispara un mensaje automático al WhatsApp del administrador del local."""
+    url = f"https://api.ultramsg.com/{ULTRAMSG_INSTANCE_ID}/messages/chat"
+    
+    # Aquí pones el número de WhatsApp del dueño del negocio que recibirá la alerta
+    # (Ejemplo con código de país de Colombia: 573101234567)
+    admin_phone = os.environ.get("ADMIN_PHONE", "573000000000") 
+    
+    mensaje = (
+        f"🚨 *¡NUEVO PEDIDO COMPLETADO!* 🚨\n\n"
+        f"👤 *Cliente:* {nombre}\n"
+        f"📱 *Teléfono:* {telefono}\n"
+        f"📍 *Dirección:* {direccion}\n"
+        f"🛍️ *Detalle del Pedido:* {pedido}"
+    )
+    
+    payload = {
+        'token': ULTRAMSG_TOKEN,
+        'to': admin_phone,
+        'body': mensaje
+    }
+    
+    try:
+        response = requests.post(url, data=payload)
+        print(f"Alerta enviada al administrador: {response.status_code}")
+    except Exception as e:
+        print(f"Error al enviar la alerta: {e}")
+
+# ==========================================
+# 3. LÓGICA DEL BOT DE WHATSAPP (Webhook)
+# ==========================================
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    data = request.json
+    
+    # Validar que el mensaje venga de WhatsApp y no sea un mensaje enviado por el bot mismo
+    if data and 'data' in data:
+        message_data = data['data']
+        from_number = message_data.get('from', '')
+        body = message_data.get('body', '')
+        is_from_me = message_data.get('fromMe', False)
         
-        bot_reply = response.choices[0].message.content.strip()
+        if is_from_me or not body:
+            return jsonify({"status": "ignored"}), 200
 
-        # Guardar respuesta del bot en la memoria
-        conversation_history[user_phone].append({"role": "assistant", "content": bot_reply})
+        # Limpiar el número de teléfono del cliente
+        telefono_cliente = from_number.split('@')[0]
 
-        return bot_reply
+        # Contexto del bot (Instrucciones para ChatGPT)
+        prompt_sistema = (
+            "Eres un asistente virtual de ventas amable y eficiente. "
+            "Tu objetivo es guiar al cliente, responder preguntas sobre los servicios o productos, "
+            "y OBLIGATORIAMENTE recolectar 3 datos antes de terminar: 1. Nombre completo, 2. Dirección de entrega, 3. Pedido exacto. "
+            "Una vez que tengas esos tres datos, indícale al cliente que su pedido ha sido tomado con éxito."
+        )
 
-    except Exception as e:
-        print(f"Error procesando mensaje con OpenAI: {e}")
-        return "¡Hola! Tuve un pequeño inconveniente técnico de señal por un segundo. ¿Me podrías repetir tu último mensaje por favor?"
+        try:
+            # Petición a la API de OpenAI (GPT-4o-mini)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": prompt_sistema},
+                    {"role": "user", "content": body}
+                ]
+            )
+            
+            respuesta_ia = response.choices[0].message.content
 
-    except Exception as e:
-        print(f"Error con la API de OpenAI: {e}")
-        return "Lo siento, tuve un pequeño inconveniente procesando tu mensaje. ¿Me lo podrías repetir?"
+            # [VERIFICACIÓN INTELIGENTE DE DATOS]
+            # Si la IA detecta que el pedido está completo, simulamos la extracción y guardado.
+            # (En una versión más avanzada puedes usar structured outputs de OpenAI, 
+            # pero por ahora validamos palabras clave de cierre o guardamos el registro).
+            if "pedido" in respuesta_ia.lower() or "éxito" in respuesta_ia.lower():
+                # Ejemplo de captura (puedes adaptarlo según el flujo exacto que te entregue la IA)
+                nombre_detectado = "Cliente de WhatsApp" 
+                direccion_detectada = "Dirección por confirmar en chat"
+                pedido_detectado = body
+                
+                # Guardamos en la base de datos local
+                guardar_pedido_en_db(telefono_cliente, nombre_detectado, direccion_detectada, pedido_detectado)
+                
+                # Lanzamos la alerta al WhatsApp del administrador
+                enviar_alerta_al_negocio(nombre_detectado, telefono_cliente, direccion_detectada, pedido_detectado)
+
+            # Enviar la respuesta de vuelta al cliente a través de UltraMsg
+            enviar_respuesta_ultramsg(telefono_cliente, respuesta_ia)
+
+        except Exception as e:
+            print(f"Error procesando con OpenAI: {e}")
+
+    return jsonify({"status": "success"}), 200
+
+def enviar_respuesta_ultramsg(to, message):
+    """Envía la respuesta de la IA de regreso al WhatsApp del usuario."""
+    url = f"https://api.ultramsg.com/{ULTRAMSG_INSTANCE_ID}/messages/chat"
+    payload = {
+        'token': ULTRAMSG_TOKEN,
+        'to': to,
+        'body': message
+    }
+    requests.post(url, data=payload)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
